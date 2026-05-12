@@ -339,6 +339,10 @@ The supervisor's notes mention **Factorization Machines (FM)** as a natural next
 
 ---
 
+## Git Commit Style
+
+Write commit messages the way a human developer would — short, active voice, conversational. Avoid robotic prefixes like `feat:` / `fix:` unless the team convention requires them. The suggested messages below are reference points for content, not a strict format to copy verbatim.
+
 ## Suggested Git Commit History
 
 ```
