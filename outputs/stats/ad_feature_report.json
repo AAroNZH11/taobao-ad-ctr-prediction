@@ -1,0 +1,26 @@
+{
+  "rows": 846811,
+  "cols": 6,
+  "duplicates_removed": 0,
+  "nulls": {
+    "adgroup_id": 0,
+    "cate_id": 0,
+    "campaign_id": 0,
+    "customer": 0,
+    "brand": 246330,
+    "price": 0
+  },
+  "null_pct": {
+    "adgroup_id": 0.0,
+    "cate_id": 0.0,
+    "campaign_id": 0.0,
+    "customer": 0.0,
+    "brand": 29.09,
+    "price": 0.0
+  },
+  "price_min": 0.01,
+  "price_max": 99999999.0,
+  "unique_cate": 6769,
+  "unique_campaign": 423436,
+  "unique_customer": 255875
+}
