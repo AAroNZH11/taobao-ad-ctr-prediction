@@ -1,0 +1,45 @@
+{
+  "rows": 1061768,
+  "cols": 9,
+  "duplicates_removed": 0,
+  "nulls": {
+    "userid": 0,
+    "cms_segid": 0,
+    "cms_group_id": 0,
+    "final_gender_code": 0,
+    "age_level": 0,
+    "pvalue_level": 575917,
+    "shopping_level": 0,
+    "occupation": 0,
+    "new_user_class_level": 344920
+  },
+  "null_pct": {
+    "userid": 0.0,
+    "cms_segid": 0.0,
+    "cms_group_id": 0.0,
+    "final_gender_code": 0.0,
+    "age_level": 0.0,
+    "pvalue_level": 54.24,
+    "shopping_level": 0.0,
+    "occupation": 0.0,
+    "new_user_class_level": 32.49
+  },
+  "gender_dist": {
+    "2": 684251,
+    "1": 377517
+  },
+  "age_dist": {
+    "0": 501,
+    "1": 65568,
+    "2": 189617,
+    "3": 307340,
+    "4": 261751,
+    "5": 214462,
+    "6": 22529
+  },
+  "pvalue_dist": {
+    "1.0": 154436,
+    "2.0": 293656,
+    "3.0": 37759
+  }
+}
