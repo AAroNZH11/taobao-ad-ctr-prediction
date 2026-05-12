@@ -1,0 +1,8 @@
+{
+  "total_raw": 723268134,
+  "after_dedup": 672199266,
+  "dedup_removed": 51068868,
+  "dedup_pct": 7.06,
+  "bad_ts": 26278,
+  "final_clean": 672172988
+}

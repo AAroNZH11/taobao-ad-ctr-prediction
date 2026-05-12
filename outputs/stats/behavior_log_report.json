@@ -1,0 +1,28 @@
+{
+  "total_rows": 723268134,
+  "nulls": {
+    "user": 0,
+    "time_stamp": 0,
+    "btag": 0,
+    "cate": 0,
+    "brand": 0
+  },
+  "intra_chunk_duplicates": 51068868,
+  "btag_counts": {
+    "pv": 638551487,
+    "cart": 15944070,
+    "fav": 9300669,
+    "buy": 8376762
+  },
+  "btag_pct": {
+    "pv": 94.9981,
+    "cart": 2.372,
+    "fav": 1.3837,
+    "buy": 1.2462
+  },
+  "ts_filter_low": 1483228800,
+  "ts_filter_high": 1577836800,
+  "parquet_size_gb": 4.893,
+  "num_chunks": 362,
+  "processing_minutes": 3.1
+}
