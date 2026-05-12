@@ -1,0 +1,146 @@
+{
+  "H1": [
+    {
+      "shopping_level": 1.0,
+      "impressions": 1118722,
+      "clicks": 60388,
+      "ctr": 0.053979451552753945
+    },
+    {
+      "shopping_level": 2.0,
+      "impressions": 2594215,
+      "clicks": 134194,
+      "ctr": 0.0517281721060128
+    },
+    {
+      "shopping_level": 3.0,
+      "impressions": 21316498,
+      "clicks": 1089931,
+      "ctr": 0.05113086586736715
+    }
+  ],
+  "H2": [
+    {
+      "has_purchase": 0,
+      "impressions": 2122094,
+      "clicks": 115958,
+      "ctr": 0.05464319676696697
+    },
+    {
+      "has_purchase": 1,
+      "impressions": 24411977,
+      "clicks": 1249189,
+      "ctr": 0.05117115258628992
+    }
+  ],
+  "H3": [
+    {
+      "price_bin": "Very Low (0-20%)",
+      "n_ads": 267931,
+      "median_price": 35.98,
+      "ctr": 0.057598411599650776
+    },
+    {
+      "price_bin": "Low (20-40%)",
+      "n_ads": 134281,
+      "median_price": 99.0,
+      "ctr": 0.05166360512815632
+    },
+    {
+      "price_bin": "Mid (40-60%)",
+      "n_ads": 124041,
+      "median_price": 168.0,
+      "ctr": 0.05126533628069778
+    },
+    {
+      "price_bin": "High (60-80%)",
+      "n_ads": 137600,
+      "median_price": 295.0,
+      "ctr": 0.04910015917061204
+    },
+    {
+      "price_bin": "Very High (80-100%)",
+      "n_ads": 182958,
+      "median_price": 699.0,
+      "ctr": 0.04733877615103819
+    }
+  ],
+  "H4": [
+    {
+      "final_gender_code": 1,
+      "gender": "Male",
+      "impressions": 6880966,
+      "clicks": 332724,
+      "ctr": 0.04835425723655661
+    },
+    {
+      "final_gender_code": 2,
+      "gender": "Female",
+      "impressions": 18148469,
+      "clicks": 951789,
+      "ctr": 0.05244458912760079
+    }
+  ],
+  "H5": [
+    {
+      "activity_bin": "Very Low (0-20%)",
+      "n_users": 477716,
+      "median_actions": 171.0,
+      "ctr": 0.04215077706028988
+    },
+    {
+      "activity_bin": "Low (20-40%)",
+      "n_users": 250257,
+      "median_actions": 414.0,
+      "ctr": 0.048309879998227924
+    },
+    {
+      "activity_bin": "Mid (40-60%)",
+      "n_users": 179191,
+      "median_actions": 698.0,
+      "ctr": 0.051378957444858236
+    },
+    {
+      "activity_bin": "High (60-80%)",
+      "n_users": 135639,
+      "median_actions": 1130.0,
+      "ctr": 0.05518334866282694
+    },
+    {
+      "activity_bin": "Very High (80-100%)",
+      "n_users": 93535,
+      "median_actions": 2163.0,
+      "ctr": 0.060259430829029556
+    }
+  ],
+  "Bonus_Age": [
+    {
+      "age_level": 0,
+      "ctr": 0.05245402111219937
+    },
+    {
+      "age_level": 1,
+      "ctr": 0.055237250335760664
+    },
+    {
+      "age_level": 2,
+      "ctr": 0.05173739780994812
+    },
+    {
+      "age_level": 3,
+      "ctr": 0.051056602567809764
+    },
+    {
+      "age_level": 4,
+      "ctr": 0.04954039504873912
+    },
+    {
+      "age_level": 5,
+      "ctr": 0.052162244998407346
+    },
+    {
+      "age_level": 6,
+      "ctr": 0.05621791480579163
+    }
+  ]
+}
