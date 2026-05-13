@@ -141,10 +141,10 @@ raw_sample + behavior_log
 [Phase 2] Hypothesis Verification      ← Completed
         │
         ▼
-[Phase 3] Interaction Matrix & SVD     ← Next step
+[Phase 3] Interaction Matrix & SVD     ← Completed
         │
         ▼
-[Phase 4] Feature Enrichment
+[Phase 4] Feature Enrichment           ← Next step
         │
         ▼
 [Phase 5] CTR Prediction Model

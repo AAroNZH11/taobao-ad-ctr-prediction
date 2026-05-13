@@ -37,6 +37,8 @@ src/
   04_clean_behavior_log.py    # chunked processing for the 23 GB file
   05_aggregate_behavior.py
   06_hypothesis_verification.py
+  07_build_interaction_matrix.py
+  08_matrix_factorization.py
 outputs/
   plots/                      # visualizations
   stats/                      # JSON summaries per script
@@ -53,10 +55,12 @@ python src/03_clean_raw_sample.py
 python src/04_clean_behavior_log.py   # ~3 min, outputs 362 parquet chunks
 python src/05_aggregate_behavior.py
 python src/06_hypothesis_verification.py
+python src/07_build_interaction_matrix.py
+python src/08_matrix_factorization.py
 ```
 
 Script 04 reads `behavior_log.csv` in 2M-row chunks — the machine this was developed on only has 3.8 GB RAM.
 
 ## What's next
 
-Building a sparse user-ad interaction matrix, running truncated SVD to extract user and ad embeddings, then training a CTR model. Baseline AUC to beat is 0.622.
+Feature engineering — joining SVD embeddings with user profile, behavior stats, and ad features to build the final training matrix, then training a CTR model. Baseline AUC to beat is 0.622.
