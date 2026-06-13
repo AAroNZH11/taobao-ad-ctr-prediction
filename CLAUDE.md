@@ -221,6 +221,93 @@ Then load test set (same dtype_map), build dtest DMatrix, predict, compute AUC w
 
 **Note on `tree_method='hist'`:** This is essential. Default `exact` method would be prohibitively slow on 23M rows. `hist` is XGBoost's fast histogram algorithm, comparable in speed to LightGBM.
 
+---
+
+### ⚠️ Crash / Disconnection Protection — MUST implement all four layers
+
+Training takes 30-60 min and the network may drop. Do not skip any of these.
+
+#### Layer 1 — `nohup` (protects against network disconnection)
+
+Run script 11 with nohup so it survives Claude session drops:
+```bash
+nohup python3 src/11_train_model.py > /tmp/train11.log 2>&1 &
+echo "PID: $!"
+```
+Tail the log anytime to check progress:
+```bash
+tail -f /tmp/train11.log
+```
+Check if still running: `ps aux | grep 11_train`
+
+#### Layer 2 — XGBoost checkpoint every 50 rounds (protects against mid-training crash)
+
+Add to training code:
+```python
+CKPT_DIR = PROCESSED_DIR / "checkpoint_phase6"
+CKPT_DIR.mkdir(exist_ok=True)
+
+callbacks = [
+    xgb.callback.TrainingCheckpoint(
+        directory=str(CKPT_DIR),
+        name='xgb_ckpt',
+        as_pickle=False,
+        iterations=50       # save every 50 rounds
+    )
+]
+model = xgb.train(params, dtrain, num_boost_round=300,
+                  evals=[(dtrain, 'train')], verbose_eval=50,
+                  callbacks=callbacks)
+```
+On restart after crash: detect latest checkpoint file, load it, resume from that round:
+```python
+import glob
+ckpt_files = sorted(glob.glob(str(CKPT_DIR / 'xgb_ckpt_*.ubj')))
+if ckpt_files:
+    latest = ckpt_files[-1]
+    start_round = int(latest.split('_')[-1].replace('.ubj',''))
+    model = xgb.Booster()
+    model.load_model(latest)
+    # xgb.train with xgb_model=latest to continue from that checkpoint
+    model = xgb.train(params, dtrain, num_boost_round=300,
+                      xgb_model=latest,
+                      evals=[(dtrain, 'train')], verbose_eval=50,
+                      callbacks=callbacks)
+```
+
+#### Layer 3 — Save DMatrix buffer (avoids re-loading 22 GB CSV on restart)
+
+Loading the CSV takes 10-15 min. Save the DMatrix binary so restarts skip that:
+```python
+DTRAIN_BUFFER = PROCESSED_DIR / "dtrain.buffer"
+DTEST_BUFFER  = PROCESSED_DIR / "dtest.buffer"
+
+if DTRAIN_BUFFER.exists():
+    print("Loading DMatrix from buffer ...")
+    dtrain = xgb.DMatrix(str(DTRAIN_BUFFER))
+else:
+    print("Loading CSV and building DMatrix ...")
+    df = pd.read_csv(TRAIN_PATH, dtype=dtype_map)
+    dtrain = xgb.DMatrix(df[FEATURE_COLS].values, label=df['clk'].values,
+                         feature_names=FEATURE_COLS)
+    del df; gc.collect()
+    print("Saving DMatrix buffer ...")
+    dtrain.save_binary(str(DTRAIN_BUFFER))   # ~10 GB on disk, loads in ~1 min next time
+```
+Same pattern for dtest. Disk space cost: ~12 GB total — acceptable.
+
+#### Layer 4 — Subagent progress monitoring
+
+While script 11 runs in background, spawn a monitoring Explore subagent to check:
+- Is the nohup process still alive? (`ps aux | grep 11_train`)
+- What's the latest log line? (`tail -5 /tmp/train11.log`)
+- Are checkpoint files being created? (`ls -lh CKPT_DIR/`)
+- If process is dead unexpectedly → report and decide whether to resume from checkpoint
+
+Do this check roughly every 20-30 minutes during the wait.
+
+---
+
 ### Script 12 — `12_evaluate.py`
 
 **Goal:** Implement supervisor's A/B scoring simulation and produce comparison plots.
