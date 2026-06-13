@@ -5,14 +5,14 @@
   "total_clicks": 143535,
   "overall_ctr": 0.050389590328962036,
   "model": {
-    "total_score": 45942.33487224967,
-    "clicks_captured": 28722,
-    "click_recall": 0.20010450412791306
+    "total_score": 44729.975544017616,
+    "clicks_captured": 27344,
+    "click_recall": 0.19050405824363395
   },
   "baseline": {
     "total_score": 33049.60972757677,
     "clicks_captured": 14454,
     "click_recall": 0.10070017765701746
   },
-  "lift_pct": 39.010219034190705
+  "lift_pct": 35.34191753766669
 }
