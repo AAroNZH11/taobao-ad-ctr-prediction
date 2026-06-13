@@ -1,0 +1,18 @@
+{
+  "n_test_impressions": 2848505,
+  "n_recommended": 284850,
+  "recommend_rate": 0.1,
+  "total_clicks": 143535,
+  "overall_ctr": 0.050389590328962036,
+  "model": {
+    "total_score": 45942.33487224967,
+    "clicks_captured": 28722,
+    "click_recall": 0.20010450412791306
+  },
+  "baseline": {
+    "total_score": 33049.60972757677,
+    "clicks_captured": 14454,
+    "click_recall": 0.10070017765701746
+  },
+  "lift_pct": 39.010219034190705
+}
