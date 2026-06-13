@@ -21,7 +21,7 @@ Decompose user-ad interaction matrix into low-dimensional embeddings — **DONE 
 - Explained variance: 3.08% (normal for implicit feedback matrices)
 
 ### Combined Model — Phase 6
-Concatenate Route A features + Route B embeddings → train LightGBM → get AUC.
+Concatenate Route A features + Route B embeddings → train XGBoost → get AUC.
 
 ### Evaluation System — Phase 6
 Simulate offline A/B test (supervisor's requirement):
@@ -153,9 +153,7 @@ TOTAL                                                               109
 
 ### Script 11 — `11_train_model.py`
 
-**Goal:** Train LightGBM on features_train, predict on features_test, report AUC.
-
-**Why LightGBM over XGBoost:** faster training, lower peak memory, handles 23M rows well.
+**Goal:** Train XGBoost on features_train, predict on features_test, report AUC.
 
 **Inputs:**
 - `PROCESSED_DIR/features_train.csv` (22 GB on disk)
@@ -163,7 +161,7 @@ TOTAL                                                               109
 
 **Outputs:**
 - `PROCESSED_DIR/predictions_test.csv` — cols: user, adgroup_id, time_stamp, clk, pred_prob
-- `PROCESSED_DIR/model.lgb` — saved LightGBM model
+- `PROCESSED_DIR/model.xgb` — saved XGBoost model
 - `STATS_DIR/model_report.json` — AUC, top-20 feature importances
 
 **⚠️ Critical memory strategy for loading features_train.csv:**
@@ -186,42 +184,42 @@ int64_cols = ['time_stamp']
 dtype_map = {c: 'int8'  for c in int8_cols}
 dtype_map.update({c: 'int32' for c in int32_cols})
 dtype_map.update({c: 'int64' for c in int64_cols})
-# float32 is the default for remaining float columns — specify explicitly too
+# specify float32 for all remaining float columns explicitly too
 
 df = pd.read_csv(TRAIN_PATH, dtype=dtype_map)
 ```
 
-With proper dtypes: ~10–12 GB in RAM (fits on 24 GB machine with headroom for LightGBM).
+With proper dtypes: ~10–12 GB in RAM. **After loading, immediately convert to xgb.DMatrix and delete the DataFrame to free memory before training.**
 
 **Training approach:**
 ```python
-import lightgbm as lgb
+import xgboost as xgb
 
 FEATURE_COLS = [c for c in df.columns
                 if c not in ('user', 'time_stamp', 'adgroup_id', 'clk')]
-X_train = df[FEATURE_COLS].values
-y_train = df['clk'].values
-del df; gc.collect()  # free before building lgb.Dataset
 
-train_data = lgb.Dataset(X_train, label=y_train, feature_name=FEATURE_COLS)
-del X_train, y_train; gc.collect()
+dtrain = xgb.DMatrix(df[FEATURE_COLS].values, label=df['clk'].values,
+                     feature_names=FEATURE_COLS)
+del df; gc.collect()  # free ~10 GB before training starts
 
 params = {
-    'objective':   'binary',
-    'metric':      'auc',
-    'learning_rate': 0.05,
-    'num_leaves':  127,
-    'min_data_in_leaf': 100,
-    'feature_fraction': 0.8,
-    'bagging_fraction': 0.8,
-    'bagging_freq':  5,
-    'verbose': -1,
+    'objective':        'binary:logistic',
+    'eval_metric':      'auc',
+    'tree_method':      'hist',   # histogram-based — much faster on large data
+    'learning_rate':    0.05,
+    'max_depth':        6,
+    'min_child_weight': 50,
+    'subsample':        0.8,
+    'colsample_bytree': 0.8,
+    'scale_pos_weight': 19,       # ~1/CTR to handle class imbalance (95:5 ratio)
 }
-model = lgb.train(params, train_data, num_boost_round=300,
-                  valid_sets=[train_data], callbacks=[lgb.log_evaluation(50)])
+model = xgb.train(params, dtrain, num_boost_round=300,
+                  evals=[(dtrain, 'train')], verbose_eval=50)
 ```
 
-Then load test set (same dtype_map), predict, compute AUC with sklearn.
+Then load test set (same dtype_map), build dtest DMatrix, predict, compute AUC with sklearn.
+
+**Note on `tree_method='hist'`:** This is essential. Default `exact` method would be prohibitively slow on 23M rows. `hist` is XGBoost's fast histogram algorithm, comparable in speed to LightGBM.
 
 ### Script 12 — `12_evaluate.py`
 
