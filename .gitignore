@@ -2,9 +2,13 @@
 *.csv
 *.parquet
 *.tar.gz
+*.npz
 
 # Processed data and analysis outputs
 analysis/
+
+# Misc
+.Rhistory
 
 # Python
 __pycache__/
