@@ -1,0 +1,9 @@
+{
+  "n_users_with_clicks": 457554,
+  "n_ads_with_clicks": 227800,
+  "nnz": 1193703,
+  "density": 1.145249759434834e-05,
+  "train_end_timestamp": 1494633600,
+  "n_training_rows": 23709456,
+  "n_clicked_rows": 1222521
+}
