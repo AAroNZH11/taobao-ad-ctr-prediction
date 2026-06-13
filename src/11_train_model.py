@@ -8,6 +8,11 @@ Outputs:
   vigorous-volhard/data/processed/predictions_test.csv
   vigorous-volhard/data/processed/model.xgb
   outputs/stats/model_report.json
+
+Training strategy:
+  - Temporal validation split: 2017-05-06~11 as train, 2017-05-12 as val
+  - Early stopping on val AUC (prevents overfitting to training days)
+  - XGBoost hist algorithm for speed on 23M rows
 """
 import gc
 import glob
@@ -31,11 +36,14 @@ TEST_PATH     = PROCESSED_DIR / "features_test.csv"
 PRED_PATH     = PROCESSED_DIR / "predictions_test.csv"
 MODEL_PATH    = PROCESSED_DIR / "model.xgb"
 REPORT_PATH   = STATS_DIR / "model_report.json"
-DTRAIN_BUFFER = PROCESSED_DIR / "dtrain.buffer"
 CKPT_DIR      = PROCESSED_DIR / "checkpoint_phase6"
 
 STATS_DIR.mkdir(parents=True, exist_ok=True)
 CKPT_DIR.mkdir(parents=True, exist_ok=True)
+
+# 2017-05-12 00:00:00 CST = Unix timestamp 1494518400
+# Rows >= this go to validation; rows < this go to training
+VAL_START_TS = 1494518400
 
 # ── Dtype map (explicit types for all 109 columns) ────────────────────────────
 INT8_COLS = ['pid', 'clk', 'brand_known', 'pvalue_known',
@@ -67,70 +75,72 @@ DTYPE_MAP.update({c: 'int32'   for c in INT32_COLS})
 DTYPE_MAP.update({c: 'int64'   for c in INT64_COLS})
 DTYPE_MAP.update({c: 'float32' for c in FLOAT32_COLS})
 
-# Columns excluded from model features (IDs + label)
 EXCLUDE = {'user', 'time_stamp', 'adgroup_id', 'clk'}
 
 # ── XGBoost hyper-parameters ──────────────────────────────────────────────────
 PARAMS = {
     'objective':        'binary:logistic',
     'eval_metric':      'auc',
-    'tree_method':      'hist',   # histogram algorithm — essential for 23M rows
+    'tree_method':      'hist',
     'learning_rate':    0.05,
     'max_depth':        6,
     'min_child_weight': 50,
     'subsample':        0.8,
     'colsample_bytree': 0.8,
-    'scale_pos_weight': 19,       # ~1/CTR handles 95:5 class imbalance
+    'scale_pos_weight': 19,
 }
-NUM_ROUNDS = 300
+NUM_ROUNDS          = 500   # upper bound — early stopping will decide actual rounds
+EARLY_STOP_ROUNDS   = 30
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def find_latest_ckpt():
-    """Return path to the most recent checkpoint file, or None."""
     files = glob.glob(str(CKPT_DIR / 'xgb_ckpt_*.ubj'))
     if not files:
         return None
-    # Sort by the integer suffix (xgb_ckpt_0.ubj → 0, xgb_ckpt_10.ubj → 10)
     return max(files, key=lambda f: int(Path(f).stem.split('_')[-1]))
 
 
-def build_dtrain():
+def load_and_split():
     """
-    Return (DMatrix, feature_cols).
-    Layer 3: loads from binary buffer if available, else reads CSV and saves buffer.
+    Read features_train.csv, split by date into train/val DMatrix objects.
+    Returns (dtrain, dval, feature_cols).
+    Memory strategy: free each intermediate DataFrame as soon as DMatrix is built.
     """
-    if DTRAIN_BUFFER.exists():
-        print(f"[Layer 3] DMatrix buffer found — loading from {DTRAIN_BUFFER}")
-        dm = xgb.DMatrix(str(DTRAIN_BUFFER))
-        feature_cols = list(dm.feature_names)
-        print(f"  Loaded: {dm.num_row():,} rows, {dm.num_col()} features")
-        return dm, feature_cols
-
-    print(f"[csv] Loading train CSV — {TRAIN_PATH}")
+    print(f"Loading train CSV — {TRAIN_PATH}")
     df = pd.read_csv(TRAIN_PATH, dtype=DTYPE_MAP)
     mem_gb = df.memory_usage(deep=True).sum() / 1e9
     print(f"  {len(df):,} rows — in-memory: {mem_gb:.2f} GB")
 
     feature_cols = [c for c in df.columns if c not in EXCLUDE]
-    print(f"  Building DMatrix from DataFrame ({len(feature_cols)} features) ...")
-    # Pass DataFrame directly — avoids dtype upcast that .values would trigger
-    dm = xgb.DMatrix(df[feature_cols], label=df['clk'])
+    train_mask = df['time_stamp'] < VAL_START_TS
+
+    n_train = train_mask.sum()
+    n_val   = (~train_mask).sum()
+    print(f"  Split: {n_train:,} train rows (05-06~11)  |  {n_val:,} val rows (05-12)")
+
+    # Extract val subset first (smaller), then train subset, then free df
+    df_val   = df[~train_mask].reset_index(drop=True)
+    df_train = df[train_mask].reset_index(drop=True)
     del df; gc.collect()
-    print("  DataFrame freed.")
 
-    print(f"  Saving DMatrix buffer → {DTRAIN_BUFFER}")
-    dm.save_binary(str(DTRAIN_BUFFER))
-    print("  Buffer saved.")
-    return dm, feature_cols
+    print("  Building train DMatrix ...")
+    dtrain = xgb.DMatrix(df_train[feature_cols], label=df_train['clk'])
+    del df_train; gc.collect()
+
+    print("  Building val DMatrix ...")
+    dval = xgb.DMatrix(df_val[feature_cols], label=df_val['clk'])
+    del df_val; gc.collect()
+
+    print("  DMatrix objects ready.")
+    return dtrain, dval, feature_cols
 
 
-def train_model(dtrain, feature_cols):
+def train_model(dtrain, dval):
     """
-    Train XGBoost or resume from the latest checkpoint.
-    Layer 2: saves checkpoint every 50 rounds to CKPT_DIR.
-    Returns trained Booster.
+    Train with early stopping on dval AUC.
+    Layer 2: checkpoint every 50 rounds.
     """
     callbacks = [
         xgb.callback.TrainingCheckPoint(
@@ -141,66 +151,68 @@ def train_model(dtrain, feature_cols):
         )
     ]
 
+    evals = [(dtrain, 'train'), (dval, 'val')]
+
     ckpt = find_latest_ckpt()
     if ckpt:
-        # Load checkpoint to find how many rounds are already done
         tmp = xgb.Booster()
         tmp.load_model(ckpt)
         completed = tmp.num_boosted_rounds()
         del tmp
         remaining = NUM_ROUNDS - completed
         if remaining <= 0:
-            print(f"[Layer 2] Checkpoint already at {completed} rounds — loading directly")
+            print(f"[checkpoint] Already at {completed} rounds — loading directly")
             model = xgb.Booster()
             model.load_model(ckpt)
             return model
-        print(f"[Layer 2] Resuming from checkpoint: {completed} done, {remaining} to go")
+        print(f"[checkpoint] Resuming from round {completed}, {remaining} rounds remaining")
         model = xgb.train(
             PARAMS, dtrain,
             num_boost_round=remaining,
-            evals=[(dtrain, 'train')],
-            verbose_eval=50,
+            evals=evals,
+            verbose_eval=20,
+            early_stopping_rounds=EARLY_STOP_ROUNDS,
             callbacks=callbacks,
             xgb_model=ckpt,
         )
     else:
-        print(f"Training XGBoost from scratch — {NUM_ROUNDS} rounds")
+        print(f"Training from scratch — up to {NUM_ROUNDS} rounds (early stopping @ {EARLY_STOP_ROUNDS})")
         model = xgb.train(
             PARAMS, dtrain,
             num_boost_round=NUM_ROUNDS,
-            evals=[(dtrain, 'train')],
-            verbose_eval=50,
+            evals=evals,
+            verbose_eval=20,
+            early_stopping_rounds=EARLY_STOP_ROUNDS,
             callbacks=callbacks,
         )
 
+    print(f"  Best round: {model.best_iteration}  |  Best val-AUC: {model.best_score:.6f}")
     return model
 
 
 def main():
     print("=" * 60)
-    print("Script 11 — XGBoost CTR Model Training")
+    print("Script 11 — XGBoost CTR Model Training (with early stopping)")
     print("=" * 60)
 
-    # Short-circuit: if predictions already exist, nothing to do
     if PRED_PATH.exists() and MODEL_PATH.exists() and REPORT_PATH.exists():
-        print(f"All outputs already exist. Delete to re-run:")
-        print(f"  {PRED_PATH}")
+        print("All outputs already exist. Delete them to re-run.")
         sys.exit(0)
 
-    # ── Step 1: Load / build training DMatrix (Layer 3) ──────────────────────
-    dtrain, feature_cols = build_dtrain()
+    # ── Step 1: Load CSV and build train/val DMatrix ──────────────────────────
+    dtrain, dval, feature_cols = load_and_split()
 
-    # ── Step 2: Train or load model (Layer 2) ─────────────────────────────────
+    # ── Step 2: Train ─────────────────────────────────────────────────────────
     if MODEL_PATH.exists():
-        print(f"\n[skip] Model already saved at {MODEL_PATH} — loading")
+        print(f"\n[skip] Model already at {MODEL_PATH} — loading")
         model = xgb.Booster()
         model.load_model(str(MODEL_PATH))
     else:
-        model = train_model(dtrain, feature_cols)
+        model = train_model(dtrain, dval)
         model.save_model(str(MODEL_PATH))
         print(f"\nModel saved → {MODEL_PATH}")
 
-    del dtrain; gc.collect()
+    del dtrain, dval; gc.collect()
 
     # ── Step 3: Predict on test set ───────────────────────────────────────────
     print(f"\nLoading test CSV — {TEST_PATH}")
@@ -229,7 +241,10 @@ def main():
     pred_meta.to_csv(PRED_PATH, index=False)
     print(f"\nPredictions saved → {PRED_PATH}")
 
-    # ── Step 6: Feature importance report ────────────────────────────────────
+    # ── Step 6: Report ────────────────────────────────────────────────────────
+    best_round = getattr(model, 'best_iteration', None)
+    best_val   = getattr(model, 'best_score', None)
+
     importance = model.get_score(importance_type='gain')
     top20 = sorted(importance.items(), key=lambda x: x[1], reverse=True)[:20]
 
@@ -238,7 +253,8 @@ def main():
         'baseline_auc': 0.622,
         'delta': float(auc - 0.622),
         'beats_baseline': bool(auc > 0.622),
-        'num_boost_round': NUM_ROUNDS,
+        'best_round': best_round,
+        'best_val_auc': float(best_val) if best_val else None,
         'params': PARAMS,
         'top20_feature_importance_gain': {k: float(v) for k, v in top20},
     }
