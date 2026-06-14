@@ -1,0 +1,41 @@
+{
+  "auc": 0.5582624566082216,
+  "baseline_auc": 0.622,
+  "delta": -0.0637375433917784,
+  "beats_baseline": false,
+  "best_round": 499,
+  "best_val_auc": 0.9521090305450959,
+  "params": {
+    "objective": "binary:logistic",
+    "eval_metric": "auc",
+    "tree_method": "hist",
+    "learning_rate": 0.05,
+    "max_depth": 6,
+    "min_child_weight": 50,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "scale_pos_weight": 19
+  },
+  "top20_feature_importance_gain": {
+    "brand_known": 197256.828125,
+    "ubrand_pv": 31467.119140625,
+    "user_svd_0": 21259.11328125,
+    "brand": 20260.4375,
+    "user_svd_13": 15520.77734375,
+    "ad_svd_0": 13638.603515625,
+    "user_svd_1": 13156.166015625,
+    "ad_svd_23": 12698.6162109375,
+    "user_svd_31": 12633.1962890625,
+    "user_svd_16": 11840.0830078125,
+    "ad_svd_1": 10361.2431640625,
+    "ad_svd_15": 9661.7060546875,
+    "user_svd_25": 8818.7841796875,
+    "ad_svd_18": 8555.5380859375,
+    "ad_svd_11": 8473.4453125,
+    "user_svd_2": 8239.9072265625,
+    "ad_svd_17": 7932.18701171875,
+    "ad_svd_21": 7485.32763671875,
+    "ad_svd_28": 7251.32958984375,
+    "user_svd_29": 7210.26123046875
+  }
+}
